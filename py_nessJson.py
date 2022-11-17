@@ -145,7 +145,7 @@ def create_vulnbyHost(reportClass, template_file):
         #       support you need.
         #     </p>
         #   </div>
-
+        vulnList = rep.vulns
         newVulnList = []
         # Order vulnlist by rating, infos first, criticals last
         allInfos = [
@@ -165,7 +165,7 @@ def create_vulnbyHost(reportClass, template_file):
         newVulnList.extend(allInfos)
 
         hostname = rep.hostname
-        vulnList = rep.vulns
+        vulnList = newVulnList
 
         print(hostname)
 
@@ -178,14 +178,21 @@ def create_vulnbyHost(reportClass, template_file):
         for v in vulnList:
             if not v:
                 continue
+            # synopsisCode = get_vuln_synopsis(v)
+            # htmlPart = f"<button class=\"accordion {str(v['risk_factor']).lower()}\">{v['plugin_name']}</button>"
+            # htmlPart += f"<div class=\"accordion-content\"><p>{synopsisCode}</p></div>"
+            # htmlParts.append(htmlPart)
+
+            # {str(v['risk_factor']).lower()}
+            riskFactor = str(v['risk_factor']).lower()
             synopsisCode = get_vuln_synopsis(v)
-            htmlPart = f"<button class=\"accordion {str(v['risk_factor']).lower()}\">{v['plugin_name']}</button>"
+            htmlPart = f"<button class=\"accordion\"><span class=\"vulnlabel {riskFactor}\">{riskFactor.upper()}</span>{v['plugin_name']}</button>"
             htmlPart += f"<div class=\"accordion-content\"><p>{synopsisCode}</p></div>"
             htmlParts.append(htmlPart)
             print(v['plugin_name'])
         contents = contents.replace("<<||REPLACE||ME>>", ''.join(htmlParts))
 
-        SAVE_FILE = rf"C:\Users\ac1d\Desktop\NessusPython\TestingTemplates\ByHost\{hostname.replace('.', '_')}.html"
+        SAVE_FILE = rf"C:\Users\ac1d\Desktop\NessusPython\Latest\ByHost\{hostname.replace('.', '_')}.html"
 
         with open(SAVE_FILE, 'w') as file:
             file.write(contents)
@@ -229,4 +236,4 @@ def get_vuln_synopsis(vuln):
 
 
 create_vulnbyHost(
-    reportClass, r"C:\Users\ac1d\Desktop\NessusPython\TestingTemplates\index.html")
+    reportClass, r"C:\Users\ac1d\Desktop\NessusPython\Latest\template\index.html")
