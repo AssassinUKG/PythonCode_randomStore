@@ -3,8 +3,6 @@ import json
 import xmltodict
 
 NESSUSFILE = r"C:\Users\ac1d\Desktop\NessusPython\jtc_xbzgqj.nessus"
-
-
 # Convert Xml to JSON
 with open(NESSUSFILE) as xml_file:
     data_dict = xmltodict.parse(xml_file.read())
@@ -19,13 +17,86 @@ json_data = json.loads(json_string)
 # - Policy
 
 
+class Report(object):
+
+    class Host(object):
+
+        infoCount = 0
+        lowCount = 0
+        mediumCount = 0
+        highCount = 0
+        criticalCount = 0
+        totalCount = 0
+        IPADDRESS = None
+
+        def __init__(self, hostname, vulns):
+            self.hostname = hostname
+            self.vulns = vulns
+
+            # update totals
+            for r in self.vulns:
+                for v in r:
+                    if v == "risk_factor":
+                        rating = r[v]
+                        if rating == "Info":
+                            self.infoCount += 1
+                        if rating == "Low":
+                            self.lowCount += 1
+                        if rating == "Medium":
+                            self.mediumCount += 1
+                        if rating == "High":
+                            self.highCount += 1
+                        if rating == "Critical":
+                            self.criticalCount += 1
+                        self.totalCount = self.criticalCount + self.highCount + \
+                            self.mediumCount + self.lowCount + self.infoCount
+
+        def print_vuln_stats(self):
+            return print(f"Critical: {self.criticalCount}\nHigh: {self.highCount}\nMedium: {self.mediumCount}\nLow: {self.lowCount}\nInfo: {self.infoCount}\nTotal: {self.totalCount}")
+
+    # End Host
+
+    def __init__(self):
+        self.hosts = []
+
+    def host_count(self):
+        return len(self.hosts)
+
+    def add_report(self, host, vulns, ip):
+        host = self.Host(host, vulns)
+        self.Host.IPADDRESS = ip
+        host.print_vuln_stats()
+        self.hosts.append(host)
+
+    def all_reports(self):
+        return self.hosts
+
+
 NessusData = json_data['NessusClientData_v2']
 Reports = NessusData['Report']['ReportHost']
 
+# Loop data and fix some data (add vuln info level)
+# Info, Low, Medium, High, Critical
+
+reportClass = Report()
+
+# IPAddress = [x for x in NessusData['Report']['ReportHost']['HostProperties']]
+
 for report in Reports:
+    listofVulns = []
+    infoCount = 0
+    lowCount = 0
+    mediumCount = 0
+    highCount = 0
+    criticalCount = 0
+
+    IPAddress = [x['#text'] for x in report['HostProperties']
+                 ['tag'] if x['@name'] == "host-ip"][0]
+
     reportName = report['@name']
     reportItem = report['ReportItem']
     print(f"HostName: {reportName}")
+    #reportClass.ipaddress = IPAddress
     for vuln in reportItem:
 
         # Cvss3 Score
@@ -35,7 +106,7 @@ for report in Reports:
         # Risk Factor
         riskFactor = vuln['risk_factor']
         # Change and update the value for None to Low
-        riskFactor = "I" if riskFactor == 'None' else riskFactor
+        riskFactor = "Info" if riskFactor == 'None' else riskFactor
         vuln['risk_factor'] = riskFactor
 
         # If Risk = High and Cvss3 score > 8.9 Rate CRITICAL
@@ -43,8 +114,157 @@ for report in Reports:
             vuln['risk_factor'] = "Critical"
             riskFactor = vuln['risk_factor']
 
-        plugin_name = vuln['plugin_name']
-        print(f"{plugin_name}, Rating: {riskFactor},  cvss3: {cvss3_score}")
+        # Set risk totals (info, low, medium, high, critical)
 
+        plugin_name = vuln['plugin_name']
+        #print(f"{plugin_name}, Rating: {riskFactor},  cvss3: {cvss3_score}")
+        listofVulns.append(vuln)
+    reportClass.add_report(reportName, listofVulns, IPAddress)
+    # print(reportClass)
+    print("\n")
 
 # print(reports)
+
+# allTotals = 0
+# for rep in reportClass.hosts:
+#     allTotals += rep.totalCount
+# print(f"Total Vulns: {allTotals}")
+
+
+# Loop here and make template report
+
+def build_AccordionItem(vulnerability, synopsis, id):
+    accodrionItemHTML = f"""
+    <div class="accordion" id="accordion" role="tablist">
+     <div class="accordion-item"> <div class="accordion-header" role="tab">
+     <button class="accordion-button ui-state-hover" type="button" data-bs-toggle="collapse" data-bs-target="#accordion .item-{id}" aria-expanded="false" aria-controls="accordion .item-{id}">
+     <span class="vulnlabel {vulnerability['risk_factor'].lower()}">{vulnerability['risk_factor'].upper()}</span>&nbsp;{vulnerability['plugin_name']}
+     </button> </div> <div class="accordion-collapsed collapse show item-{id}" role="tabpanel" data-bs-parent="#accordion">
+     <div class="accordion-body"> <p>{synopsis}</p> </div> </div> </div>"""
+    return accodrionItemHTML
+
+
+def create_vulnbyHost(reportClass, template_file):
+
+    for rep in reportClass.hosts:
+
+        # Name rep.hostname
+        # Vulns rep.vulns (loop this build html)
+        # Basic accordion structure
+
+        #      <button class="accordion">Website Design and Development</button>
+        #   <div class="accordion-content">
+        #     <p>
+        #       Whether you need a wordpress website, a shopify site, or a custom fullstack application, we got you! No matter
+        #       what kind of website or application you need, it will be made with clean and maintable code that follows modern
+        #       development standards. We also have top notch designers that can make unique designs that will make your website
+        #       look different and unique. Not to mention that we also provide 24/7 website maintenance so that you get all the
+        #       support you need.
+        #     </p>
+        #   </div>
+        vulnList = rep.vulns
+        newVulnList = []
+        # Order vulnlist by rating, infos first, criticals last
+        allInfos = [
+            x for x in vulnList if x['risk_factor'] == "Info"]
+        allLowss = [
+            x for x in vulnList if x['risk_factor'] == "Low"]
+        allMediumss = [
+            x for x in vulnList if x['risk_factor'] == "Medium"]
+        allHighs = [
+            x for x in vulnList if x['risk_factor'] == "High"]
+        allCriticalss = [
+            x for x in vulnList if x['risk_factor'] == "Critical"]
+        newVulnList.extend(allCriticalss)
+        newVulnList.extend(allHighs)
+        newVulnList.extend(allMediumss)
+        newVulnList.extend(allLowss)
+        newVulnList.extend(allInfos)
+
+        hostname = rep.hostname
+        vulnList = newVulnList
+
+        print(hostname)
+
+        TEMPLATE_FILE = template_file
+
+        with open(TEMPLATE_FILE, 'r') as template:
+            contents = template.read()
+
+        htmlParts = []
+        idCount = 0
+        for v in vulnList:
+            if not v:
+                continue
+            # synopsisCode = get_vuln_synopsis(v)
+            # htmlPart = f"<button class=\"accordion {str(v['risk_factor']).lower()}\">{v['plugin_name']}</button>"
+            # htmlPart += f"<div class=\"accordion-content\"><p>{synopsisCode}</p></div>"
+            # htmlParts.append(htmlPart)
+
+            # {str(v['risk_factor']).lower()}
+            IPADDRESS = rep.IPADDRESS
+            #riskFactor = str(v['risk_factor']).lower()
+            synopsisCode = get_vuln_synopsis(v, IPADDRESS)
+            # htmlPart = f"<button class=\"accordion\"><span class=\"vulnlabel {riskFactor}\">{riskFactor.upper()}</span>{v['plugin_name']}</button>"
+            # htmlPart += f"<div class=\"accordion-content\"><p>{synopsisCode}</p></div>"
+
+            htmlPart = build_AccordionItem(v, synopsisCode, idCount)
+
+            htmlParts.append(htmlPart)
+            idCount += 1
+            print(v['plugin_name'])
+        contents = contents.replace("|TOTALFINDINGS|", str(rep.totalCount))
+        contents = contents.replace("|TOTALCRITICAL|", str(rep.criticalCount))
+        contents = contents.replace("|TOTALHIGH|", str(rep.highCount))
+        contents = contents.replace("|TOTALMEDIUM|", str(rep.mediumCount))
+        contents = contents.replace("|TOTALLOW|", str(rep.lowCount))
+        contents = contents.replace("|TOTALINFORMATION|", str(rep.totalCount))
+
+        # Findings
+        contents = contents.replace("<|||REPLACEME||||>", ''.join(htmlParts))
+
+        SAVE_FILE = rf"C:\Users\ac1d\Desktop\NessusPython\Latest\ByHost\{hostname.replace('.', '_')}.html"
+
+        with open(SAVE_FILE, 'w') as file:
+            file.write(contents)
+        # print(contents)
+
+
+def cleanString(string):
+    string = string.replace("<", "LT")
+    string = string.replace(">", "GT")
+    string = string.replace("`n", "<br />")
+    return string
+
+
+def get_vuln_synopsis(vuln, ip):
+    # aa
+    synopsis = vuln['synopsis']
+    solution = vuln['solution']
+
+    classtype = "HOLDER"
+    ipaddress = ip
+    port = vuln['@port']
+    protocol = vuln['@protocol']
+    servicename = vuln['@svc_name']
+    description = vuln['description']
+    pluginoutput = vuln['plugin_output'] if "plugin_output" in vuln else ""
+    # systeminfo
+    retHTML = "<div><strong>Summary Information</strong><br /><br />"
+    retHTML += "<table><tr><td>Synopsis</td><td>"
+    retHTML += f"{cleanString(synopsis)}</td></tr><tr><td>Solution</td><td>"
+    retHTML += f"{cleanString(solution)}</td></tr></table><br /><br /><strong>Details By Port</strong><br /><br /></div>"
+
+    retHTML += "<table>"
+    retHTML += f"<tr class=\"{classtype}\"><td>IP Address</td><td>"
+    retHTML += f"{ipaddress}</td></tr><tr><td>Port/Protocol</td><td>{port}/{protocol}/{servicename}</td></tr>"
+    retHTML += "<tr><td>Description</td>"
+    retHTML += f"<td class=\"tddesc\"><div class=\"divtoggle\">{cleanString(description)}</div><div class=\"link toggle\"/></td></tr>"
+    retHTML += "<tr><td>Output</td>"
+    retHTML += f"<td class=\"tdoutput\"><div class=\"divtoggle\">{cleanString(pluginoutput)}</div><div class=\"link toggle\" /></td></tr></table><br /><br />"
+
+    return retHTML
+
+
+create_vulnbyHost(
+    reportClass, r"C:\Users\ac1d\Desktop\NessusPython\Latest\template\index.html")
