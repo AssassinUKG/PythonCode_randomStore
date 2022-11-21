@@ -3,30 +3,12 @@
 import cairo
 from math import pi
 
-crit = 1
-high = 1
-medium = 2
-low = 3
-info = 1
-
-# total: 10
-# 1 / 10 *360 = 36
-# 1 / 10 *360 = 36
-# 2 / 10 *360 = 72
-# 3 / 10 *360 = 108
-# 3 / 10 *360 = 108
-
 # RGB values
 # crit: 229,71,97
 # high: 7,45,64
 # medium: 246,162,72
 # Low: 112,162,136
 # Info: 0,176,240
-
-
-def getSegment():
-
-    pass
 
 
 def getPercent(num, total):
@@ -45,7 +27,6 @@ def convertRGBColor(R, G, B):
 
 
 def getColorforvuln(name):
-
     if name == "critical":
         r, g, b = convertRGBColor("229", "71", "97")
         return r, g, b, 1
@@ -79,7 +60,7 @@ def draw_segment(cr, a1, a2, rating):
     cr.fill()
     cr.stroke()
 
-    print(f"R:{r}, G:{g}, B:{b}")
+    # print(f"R:{r}, G:{g}, B:{b}")
 
 
 def path_ellipse(cr, x, y, width, height, angle=0):
@@ -112,10 +93,10 @@ def draw_pieChart(stats):
     InfoPercent = getPercent(int(stats["info"]), totalVuln)
 
     t = CriticialPercent + HighPercent + MediumPercent + LowPercent + InfoPercent
-    print()
-    print(f"crit: {CriticialPercent}, high: {HighPercent}, med: {MediumPercent}, low: {LowPercent}, info: {InfoPercent}")
-    print(f"Total: {t}")
-    print()
+    # print()
+    # print(f"crit: {CriticialPercent}, high: {HighPercent}, med: {MediumPercent}, low: {LowPercent}, info: {InfoPercent}")
+    # print(f"Total: {t}")
+    # print()
 
     stats['critical'] = CriticialPercent
     stats['high'] = HighPercent
@@ -145,15 +126,18 @@ def draw_pieChart(stats):
 
             draw_segment(context, start, end, stat)
             lastPoint += statPoint
-
+    with open("test.svg", "r") as content:
+        svgContent = content.read()
+    return svgContent
 
 #inputVars = {"critical":"1","high":"1","medium":"1","low":"1", "info":"1"}
 #inputVars = {"critical":"0","high":"0","medium":"0","low":"0", "info":"4"}
 
+
 inputVars = {"critical": "6", "high": "2",
              "medium": "3", "low": "6", "info": "1"}
 
-draw_pieChart(inputVars)
+imageText = draw_pieChart(inputVars)
 
-
+print(imageText)
 print("File Saved")
