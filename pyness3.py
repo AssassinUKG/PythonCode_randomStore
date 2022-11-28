@@ -231,6 +231,9 @@ class Report(object):
 
 
 def build_AccordionItem(vulnerability, synopsis, id):
+
+    synopsis = synopsis.replace("\n", "<br>")
+
     accodrionItemHTML = f"""
     <div class="accordion" id="accordion" role="tablist">
      <div class="accordion-item"> <div class="accordion-header" role="tab">
@@ -527,7 +530,7 @@ def build_table_items(reports, column_length=3):
     # for i in range(0, len(list1), 6):
     #     print(list1[i:i+6])
     #vulnList = sort_vlun_list(report)
-    allCounts = getall_findingTotals(reports)
+    #allCounts = getall_findingTotals(reports)
     #listAll = get_list_of_totalFindings_object(reports)
     uniq_hosts = uniq_hosts_from_report(reports)
     # a
@@ -548,21 +551,26 @@ def build_table_items(reports, column_length=3):
         if rep._critical_count > 0:
             TD_ROW = f"<td class=\"criticalbg\"><a href=\"{rep._report_filepath}\">{rep._hostname}</a></td>"
             allTds.append(TD_ROW)
+            print(f"Classed: Critical - {rep._hostname}")
             continue
         if rep._high_count > 0 and rep._critical_count <= 0:
             TD_ROW = f"<td class=\"highbg\"><a href=\"{rep._report_filepath}\">{rep._hostname}</a></td>"
             allTds.append(TD_ROW)
+            print(f"Classed: High - {rep._hostname}")
             continue
         if rep._medium_count > 0 and rep._critical_count <= 0 and rep._high_count <= 0:
             TD_ROW = f"<td class=\"mediumbg\"><a href=\"{rep._report_filepath}\">{rep._hostname}</a></td>"
             allTds.append(TD_ROW)
+            print(f"Classed: Medium - {rep._hostname}")
             continue
         if rep._low_count > 0 and rep._critical_count <= 0 and rep._high_count <= 0 and rep._medium_count <= 0:
             TD_ROW = f"<td class=\"lowbg\"><a href=\"{rep._report_filepath}\">{rep._hostname}</a></td>"
             allTds.append(TD_ROW)
+            print(f"Classed: Low - {rep._hostname}")
             continue
-        else:
+        if rep._info_count > 0 and rep._critical_count <= 0 and rep._high_count <= 0 and rep._medium_count <= 0 and rep._low_count <= 0:
             TD_ROW = f"<td class=\"infobg\"><a href=\"{rep._report_filepath}\">{rep._hostname}</a></td>"
+            print(f"Classed: Info - {rep._hostname}")
             allTds.append(TD_ROW)
         # for vuln in vulnList:
         # print(vuln._hostname)
@@ -588,17 +596,35 @@ def build_table_items(reports, column_length=3):
         # TD_ROW = f"<td class=\"lowbg\"><a href=\"{rep._report_filepath}\">{rep._hostname}</a></td>"
         # allTds.append(TD_ROW)
         # allTds.sort()
-        print(f"total: {total}")
+        #print(f"total: {total}")
     # add a check for dupe items
+    allTds.sort()
+    sortedList = []
 
-    allTd_bysix = []
-    for i in range(0, len(allTds), column_length):
-        hns = ''.join(allTds[i:i+column_length])
-        allTd_bysix.append(hns)
+    lastIndexofCritical = [x for x in allTds if "criticalbg" in x]
+    lastIndexofHigh = [x for x in allTds if "highbg" in x]
+    lastIndexofMedium = [x for x in allTds if "mediumbg" in x]
+    lastIndexofLow = [x for x in allTds if "lowbg" in x]
+    lastIndexofInfo = [x for x in allTds if "infobg" in x]
+
+    sortedList.extend(lastIndexofCritical)
+    sortedList.extend(lastIndexofHigh)
+    sortedList.extend(lastIndexofMedium)
+    sortedList.extend(lastIndexofLow)
+    sortedList.extend(lastIndexofInfo)
+
+    # print(sortedList)
+    allTd_byLength = []
+    sortedList = list(filter(None, sortedList))
+    for i in range(0, len(sortedList), column_length):
+
+        hns = ''.join(sortedList[i:i+column_length])
+        allTd_byLength.append(hns)
     final = []
-    for td in allTd_bysix:
+    for td in allTd_byLength:
         final.append(f"<tr>{td}</tr>")
     returnString = ''.join(final)
+    print(returnString)
     return returnString
 
 
@@ -628,7 +654,7 @@ def build_dashboard_page(reports, template_path, sorted_vulns_by_host, argparse_
              allCounts['medium'] + allCounts['low'] + allCounts['info'])
     # TODO: inplement check here for info showing or not.
     hostnames_table = build_table_items(reports)
-
+    #allCounts = getall_findingTotals(hostnames_table)
     replace_value_in_file(
         template_path, "|||TOTALCRITICAL|||", allCounts['critical'])
     replace_value_in_file(template_path, "|||TOTALHIGH|||",
@@ -648,6 +674,73 @@ def build_dashboard_page(reports, template_path, sorted_vulns_by_host, argparse_
 
     imageText = draw_pieChart(allCounts)
     replace_value_in_file(template_path, "|||PIE-CHART|||", imageText)
+
+
+def build_allvulns_page(reports, template_path, options):
+    allCounts = getall_findingTotals(reports)
+    TOTAL = (allCounts['critical'] + allCounts['high'] +
+             allCounts['medium'] + allCounts['low'] + allCounts['info'])
+    #allCounts = getall_findingTotals(hostnames_table)
+    replace_value_in_file(
+        template_path, "|||TOTALCRITICAL|||", allCounts['critical'])
+    replace_value_in_file(template_path, "|||TOTALHIGH|||",
+                          allCounts['high'])
+    replace_value_in_file(
+        template_path, "|||TOTALMEDIUM|||", allCounts['medium'])
+    replace_value_in_file(template_path, "|||TOTALLOW|||",
+                          allCounts['low'])
+    replace_value_in_file(
+        template_path, "|||TOTALINFORMATION|||", allCounts['info'])
+
+    #replace_value_in_file(template_path, "assets/", "../assets/")
+
+    imageText = draw_pieChart(allCounts)
+    replace_value_in_file(template_path, "|||PIE-CHART|||", imageText)
+
+    replace_value_in_file(template_path, "|||TOTALFINDINGS|||", TOTAL)
+    htmlParts = []
+    critical = []
+    high = []
+    medium = []
+    low = []
+    info = []
+    idCount = 0
+    for report in reports.hosts:
+        vulnList = sort_vlun_list(report)
+        for vuln in vulnList:
+            if not vuln:
+                continue
+
+            _host_ipaddress = report._host_ipaddress
+            synopsisCode = get_vuln_synopsis(vuln, _host_ipaddress)
+            htmlPart = build_AccordionItem(vuln, synopsisCode, idCount)
+            idCount += 1
+            if vuln['risk_factor'] == "Critical":
+                critical.append(htmlPart)
+                continue
+            if vuln['risk_factor'] == "High":
+                high.append(htmlPart)
+                continue
+            if vuln['risk_factor'] == "Medium":
+                medium.append(htmlPart)
+                continue
+            if vuln['risk_factor'] == "Low":
+                low.append(htmlPart)
+                continue
+            if vuln['risk_factor'] == "Info":
+                # Hide infro from report
+               # info.append(htmlPart)
+                continue
+            idCount += 1
+    htmlParts.extend(critical)
+    htmlParts.extend(high)
+    htmlParts.extend(medium)
+    htmlParts.extend(low)
+    htmlParts.extend(info)
+
+    # print(vuln)
+    replace_value_in_file(
+        template_path, "|||REPLACEME||||", "".join(htmlParts))
     pass
 
 
@@ -677,6 +770,8 @@ def main():
     ASSETS_DIR = rf"{REPORT_DIR}\assets"
     INDEX_PAGE = rf"{REPORT_DIR}\index.html"
     VULN_BY_HOST_TEMPLATE = rf"{currDir}\\files\template\vbh_template.html"
+    ALL_VULNS_TEMPLATE = rf"{currDir}\files\template\allvulns_template.html"
+    ALL_VULNS = rf"{REPORT_DIR}\allvulns\allvulns_template.html"
 
     # 1. Parse File
     reports = get_reports(options['input_file'])
@@ -688,80 +783,35 @@ def main():
     # time.sleep(0.2)
 
     # Need better folder and file management functions.
+
     if not os.path.exists(INDEX_PAGE):
         os.mkdir(os.path.dirname(INDEX_PAGE))
 
     shutil.copyfile(indexOriginal, INDEX_PAGE)
-
-    # Build Dashboard
-
+    shutil.copyfile(indexOriginal, INDEX_PAGE)
+    if os.path.exists(ASSETS_DIR):
+        shutil.rmtree(ASSETS_DIR)
+    shutil.copytree(
+        assetsDirOriginal, ASSETS_DIR)
     # Build VulnsByHost
-
     create_vulnbyHost(reports, VULN_BY_HOST_TEMPLATE, REPORT_DIR, options)
 
-    # Build AllVulns
-
-    # # Swap values in index.html page (customername, timereportGenerated, Findings, piechart, hosts...)
-    # c_time = os.path.getctime(options["input_file"])
-    # dt_c = datetime.fromtimestamp(c_time).strftime("%d/%m/%Y, %H:%M:%S")
-    # creationTime = dt_c
-    # # print(dt_c)
-    # replace_value_in_file(INDEX_PAGE, "|||TIMECREATED|||", creationTime)
-    # replace_value_in_file(INDEX_PAGE, "|||COMPANYNAME|||",
-    #                       options['customerName'])
-    # # Get and replace all total values
-    # allCounts = getall_findingTotals(reports)
-
+    # Build Dashboard
     # Remake how you loop the hosts and parseing data..... use the methond below for better results.
     allCounts = getall_findingTotals(reports)
     #dashboard_hosts = get_list_of_totalFindings_object(reports)
     build_dashboard_page(reports, INDEX_PAGE, allCounts, options)
     # print(dashboard_hosts)
 
-    # # switch to omit info data static for now (testing)
-    # showInfos = True
-    # if not showInfos:
-    #     allCounts['info'] = 0
-    #     # regxStr = "<ul>(\n\s.*){5}"
-    #     # with open(INDEX_PAGE, "r") as r:
-    #     #     page = r.read()
-    #     # x = re.search(regxStr, page)
-    #     replaceVar = '<li style="font-size: 14px;">Total Info:&nbsp;<span class="spanFindings" style="font-size: 14px;">|||TOTALINFORMATION|||</span></li>'
-    #     replace_value_in_file(
-    #         INDEX_PAGE, replaceVar, "")
-    # else:
-    #     replace_value_in_file(
-    #         INDEX_PAGE, "|||TOTALINFORMATION|||", allCounts['info'])
-
-    # replace_value_in_file(
-    #     INDEX_PAGE, "|||TOTALCRITICAL|||", allCounts['critical'])
-    # replace_value_in_file(INDEX_PAGE, "|||TOTALHIGH|||", allCounts['high'])
-    # replace_value_in_file(INDEX_PAGE, "|||TOTALMEDIUM|||", allCounts['medium'])
-    # replace_value_in_file(INDEX_PAGE, "|||TOTALLOW|||", allCounts['low'])
-
-    # TOTAL = (allCounts['critical'] + allCounts['high'] +
-    #          allCounts['medium'] + allCounts['low'] + allCounts['info'])
-    # replace_value_in_file(
-    #     INDEX_PAGE, "|||TOTALFINDINGS|||", TOTAL)
-
-    # imageText = draw_pieChart(allCounts)
-    # replace_value_in_file(INDEX_PAGE, "|||PIE-CHART|||", imageText)
-
-    # # build table for index page
-    # hostnames_table = build_table_items(reports)
-    # # print(hostnames_table)
-    # replace_value_in_file(INDEX_PAGE, "|||TABLEREPLACE|||", hostnames_table)
-
-    # Copy asset folder
-
-    if os.path.exists(ASSETS_DIR):
-        shutil.rmtree(ASSETS_DIR)
-    shutil.copytree(
-        assetsDirOriginal, ASSETS_DIR)
+    if not os.path.exists(ALL_VULNS):
+        os.mkdir(os.path.dirname(ALL_VULNS))
+    shutil.copyfile(ALL_VULNS_TEMPLATE, ALL_VULNS)
+    # Build AllVulns
+    build_allvulns_page(reports, ALL_VULNS, options)
 
 
 if __name__ == "__main__":
     main()
 
 
-# Test: python.exe .\parse-nessus.py -i "C:\\Users\\ac1d\\Desktop\\Mysites\\vulnByHost\\jtc_xbzgqj.nessus" -c "Google"
+# Test: python.exe .\parse-nessus.py -i "C:\\Users\\ac1d\\Desktop\\Mysites\\ParseNessus\\jtc_xbzgqj.nessus" -c "Google"
